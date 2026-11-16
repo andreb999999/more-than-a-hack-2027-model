@@ -1,0 +1,7 @@
+# Our text files are stored and checked out with LF line endings on every platform.
+*.py text eol=lf
+*.md text eol=lf
+*.toml text eol=lf
+*.txt text eol=lf
+# CSV inputs and outputs are compared byte for byte: never convert their line endings
+*.csv -text

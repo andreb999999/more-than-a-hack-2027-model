@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 760" width="960" height="760" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#444"/>
+    </marker>
+    <style>
+      .box { stroke: #555; stroke-width: 1.5; rx: 10; }
+      .input { fill: #eef3fb; }
+      .train { fill: #fff6e5; }
+      .stage { fill: #eaf6ee; }
+      .out { fill: #f3eefb; }
+      .group { fill: none; stroke: #999; stroke-width: 1.2; stroke-dasharray: 6 5; rx: 14; }
+      .t { font-size: 15px; fill: #222; text-anchor: middle; }
+      .tb { font-size: 16px; font-weight: bold; fill: #222; text-anchor: middle; }
+      .small { font-size: 13px; fill: #444; text-anchor: middle; }
+      .label { font-size: 13px; fill: #666; font-style: italic; }
+      .line { stroke: #444; stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #888; stroke-width: 1.4; fill: none; stroke-dasharray: 5 4; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect width="960" height="760" fill="#ffffff"/>
+
+  <!-- inputs -->
+  <rect class="box input" x="40" y="24" width="400" height="74"/>
+  <text class="tb" x="240" y="52">Our match (no answers)</text>
+  <text class="small" x="240" y="76">tracking of players and ball, match information, tags</text>
+
+  <rect class="box train" x="520" y="24" width="400" height="74"/>
+  <text class="tb" x="720" y="52">7 Bundesliga matches (public)</text>
+  <text class="small" x="720" y="76">every frame labelled: in play or dead, which team</text>
+
+  <!-- training -->
+  <rect class="group" x="500" y="122" width="440" height="270"/>
+  <text class="label" x="516" y="144">training (once)</text>
+
+  <rect class="box train" x="520" y="156" width="400" height="62"/>
+  <text class="t" x="720" y="182">Add the same noise as our tracking</text>
+  <text class="small" x="720" y="203">missing ball, broken player tracks</text>
+
+  <rect class="box train" x="520" y="250" width="190" height="122"/>
+  <text class="t" x="615" y="282">Learn:</text>
+  <text class="t" x="615" y="304">is the ball dead?</text>
+  <text class="small" x="615" y="330">decision trees</text>
+  <text class="small" x="615" y="350">movement + ball signs</text>
+
+  <rect class="box train" x="730" y="250" width="190" height="122"/>
+  <text class="t" x="825" y="282">Learn:</text>
+  <text class="t" x="825" y="304">which team has it?</text>
+  <text class="small" x="825" y="330">decision trees</text>
+  <text class="small" x="825" y="350">shape of the two teams</text>
+
+  <path class="line" d="M720,98 L720,154"/>
+  <path class="dash" d="M300,98 C300,140 420,187 518,187"/>
+  <text class="label" x="330" y="150">measure its noise</text>
+  <path class="line" d="M640,218 L620,248"/>
+  <path class="line" d="M800,218 L820,248"/>
+
+  <!-- stage 1 -->
+  <rect class="box stage" x="40" y="420" width="420" height="200"/>
+  <text class="tb" x="250" y="448">Stage 1: in play or dead?</text>
+  <text class="t" x="250" y="480">mix per frame: learned detector 75 %</text>
+  <text class="t" x="250" y="500">+ 18 football rules 25 %</text>
+  <text class="t" x="250" y="530">force the certain cases</text>
+  <text class="small" x="250" y="550">ball out until restart, goal, set piece, clear play</text>
+  <text class="t" x="250" y="580">smooth: a stoppage lasts at least 4 s</text>
+  <text class="small" x="250" y="600">about 44 % of the match is dead</text>
+
+  <!-- stage 2 -->
+  <rect class="box stage" x="500" y="420" width="420" height="200"/>
+  <text class="tb" x="710" y="448">Stage 2: which team has the ball?</text>
+  <text class="t" x="710" y="480">only on the live frames of stage 1</text>
+  <text class="t" x="710" y="510">per frame: chance the home team has it</text>
+  <text class="small" x="710" y="530">from the shape of the two teams, no ball needed</text>
+  <text class="t" x="710" y="566">smooth into possessions</text>
+  <text class="small" x="710" y="586">a change of team needs about 1 s of clear evidence</text>
+
+  <path class="line" d="M240,98 L240,418"/>
+  <path class="line" d="M615,372 C615,395 400,395 360,418"/>
+  <path class="line" d="M825,372 L825,418"/>
+  <path class="line" d="M460,520 L498,520"/>
+
+  <!-- output -->
+  <rect class="box out" x="250" y="660" width="460" height="74"/>
+  <text class="tb" x="480" y="690">submission.csv</text>
+  <text class="small" x="480" y="714">one letter per frame: H home, A away, D dead ball</text>
+  <path class="line" d="M710,620 C710,640 560,640 540,658"/>
+</svg>

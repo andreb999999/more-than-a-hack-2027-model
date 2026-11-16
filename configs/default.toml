@@ -1,0 +1,119 @@
+# The submitted configuration. Every parameter of the pipeline is here; docs/MODEL.md explains each block.
+# Relative paths are resolved against the repository root.
+
+[paths]
+match_data = "data"                     # the organisers' bundle (data/tactical/...); MTAH_DATA_DIR overrides
+dfl_data = "data/external/dfl"          # DFL open data, filled by scripts/download_dfl.py; DFL_DATA_DIR overrides
+cache = "cache"                         # rebuildable intermediate results (safe to delete)
+artifacts = "artifacts"                 # trained models (written by train/, read by inference/)
+submission = "outputs/submission.csv"
+
+[runtime]
+seed = 20271117                         # every random draw (degradation, gradient boosting) derives from it
+threads = 4                             # OpenMP / BLAS threads
+
+[dfl]
+matches = ["J03WMX", "J03WN1", "J03WOH", "J03WOY", "J03WPY", "J03WQQ", "J03WR9"]
+row_stride = 15                         # training keeps one labelled frame in 15 (neighbours are near-copies)
+
+# Explicit-duration Viterbi decoder (lib/possession/decoding/viterbi.py), shared by both stages.
+[viterbi]
+min_duration = [12, 12, 100]            # frames for H, A, D (a stoppage lasts at least 4 s)
+switch = [[0.0, 1.0, 1.0], [1.0, 0.0, 1.0], [1.0, 1.0, 0.0]]
+penalty_scale = 8.0                     # placeholder: stage 1 calibrates it, stage 2 sets it from change_cost_seconds
+prior = [0.3333333333333333, 0.3333333333333333, 0.3333333333333333]
+floor = 1e-4
+dead_bias = 0.0                         # start of stage 1's calibration; stage 2 keeps 0
+max_sandwiched_alive = 75               # alive runs < 3 s between two D runs become D
+
+# Stage 1: dead ball vs alive.
+[stage1]
+head_weight = 0.75                      # P(dead) = 0.75 * DFL head + 0.25 * cue rules
+overshoot_frames = 25                   # possessions run 1 s into each neighbouring stoppage
+sliver_frames = 26                      # alive slivers <= 1 s between observed D and a stoppage become D
+keeper_hold_sliver_frames = 26          # same, after the goalkeeper-holds-the-ball rule (L5)
+
+# The decoder's two free parameters are chosen by bisection against two label-free priors (the dead-ball share
+# first, then the number of live stretches; the two interact weakly, so 2 rounds). Stage 1 decodes with a
+# neutral team split, so its H / A runs are the live stretches between stoppages.
+[stage1.calibration]
+target_live_stretches = 340             # an upper bound: the switch penalty must not merge stoppages
+target_dead_share = 0.44                # dead-ball share of match play (close to the DFL training share, 0.45)
+rounds = 2
+penalty_range = [0.01, 400.0]           # geometric bisection of penalty_scale
+penalty_iterations = 24
+live_stretch_tolerance = 3
+dead_bias_range = [-8.0, 8.0]           # linear bisection of dead_bias (nats)
+dead_bias_iterations = 16
+dead_share_tolerance = 0.005
+
+# The dead-ball cue features (input of the DFL head and of the cue rules, on DFL and on the challenge match) use the
+# ball-out rules without two refinements, R2a (an airborne ball projected beyond a line is not out) and R4e
+# (a throw first seen mid-air is the restart); the forced and observed layers always use both.
+[stage1.cues]
+flight_veto = false
+inward_throw = false
+
+[stage1.head]
+max_iter = 300
+learning_rate = 0.05
+max_leaf_nodes = 31
+l2_regularization = 1.0
+row_stride = 15
+lookahead_s = [1, 2]
+# The head's 40 input columns: 10 feature groups, each a cue with its look-ahead copies or a shape column with
+# its context.
+columns = [
+    "db_frac_walk_1s", "db_frac_walk_1s__ahead1s", "db_frac_walk_1s__ahead2s",
+    "db_spd_med_10s", "db_spd_med_10s__ahead1s", "db_spd_med_10s__ahead2s",
+    "a_vx", "a_vx__m25", "a_vx__m75", "a_vx__delta", "a_vx__m250", "a_vx__past62", "a_vx__fut62", "a_vx__d62",
+    "db_player_carries", "db_player_carries__ahead1s", "db_player_carries__ahead2s",
+    "db_since_out_evidence", "db_since_out_evidence__ahead1s", "db_since_out_evidence__ahead2s",
+    "db_ball_still_2s", "db_ball_still_2s__ahead1s", "db_ball_still_2s__ahead2s",
+    "db_ball_spd_1s", "db_ball_spd_1s__ahead1s", "db_ball_spd_1s__ahead2s",
+    "db_throw_in", "db_throw_in__ahead1s", "db_throw_in__ahead2s",
+    "h_vx", "h_vx__m25", "h_vx__m75", "h_vx__delta", "h_vx__m250", "h_vx__past62", "h_vx__fut62", "h_vx__d62",
+    "db_spd_p90_3s", "db_spd_p90_3s__ahead1s", "db_spd_p90_3s__ahead2s",
+]
+
+# Hand-set log-odds weights (nats) of the dead-ball cue terms (features/deadball.py: rule_terms). Each weight
+# is roughly the log of the cue's likelihood ratio as judged from the Laws of the Game and from how rare the
+# configuration is in open play. The order is the order the terms are summed in.
+[stage1.cue_rules]
+bias = -1.5
+
+[stage1.cue_rules.weights]
+slow = 3.0                # everyone walking for 3 s
+fast = -2.5               # somebody sprinting (p90 speed > 4.5 m/s): play is on
+ball_out = 8.0            # ball out / vanished at a line / at rest / a player outside
+since_out = 4.0           # ... held until the restart is struck
+kickoff = 3.0
+corner = 2.0
+wall = 2.0
+goal_kick = 1.0
+throw_in = 1.5
+ball_placed = 1.0         # ball visible and stationary for 2 s while players walk
+sp_open = 2.0             # inside a Smart Tagging SET PIECES window before its restart
+goal_pending = 3.0        # between a goal and the following kick-off
+restart_passed = -1.5     # a restart in the last 5 s
+ball_moving = -1.0        # ball moving > 4 m/s
+lost_slow = 2.0           # ball untracked >= 3 s while everyone walks
+keeper_holds = -2.0       # keeper in his box with the ball
+player_carries = -1.5     # ball within 1 m of a player
+walk = 1.0                # everyone walking >= 3 s
+
+# Stage 2: home vs away inside stage 1's live blocks.
+[team_model]
+max_iter = 300
+learning_rate = 0.05
+max_leaf_nodes = 31
+l2_regularization = 1.0
+n_members = 3                           # estimators averaged (seeds seed, seed + 1, seed + 2)
+swap_augment = true
+balance = true
+
+[stage2]
+change_cost_seconds = 1.0               # a change of team must be paid for by 1 s of clear evidence ...
+clear_evidence_odds = 9.0               # ... "clear" = 0.9 / 0.1 per frame
+overshoot_frames = 0
+sliver_frames = 26

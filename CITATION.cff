@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+title: "Ball possession from tracking: More than a Hack 2027, Phase 1"
+message: "If you use this code, please cite it."
+type: software
+abstract: >-
+  Frame-level ball possession (home, away or dead ball) for the More than a Hack 2027 Phase 1
+  challenge, from the organisers' tracking and Smart Tagging only. Stage 1 finds dead-ball
+  frames from football rules read off the tracking and a learned detector; stage 2 decides which
+  team has the ball from the shape of the two teams. Both learned parts are trained on the DFL
+  open data (Bassek et al. 2025, CC BY 4.0).
+authors:
+  - name: "bar_celona"
+license: MIT
+version: "1.0.0"
+keywords:
+  - football
+  - soccer
+  - ball possession
+  - tracking data
+  - sports analytics
+references:
+  - type: dataset
+    title: "More than a Hack 2027: Frame-level Ball Possession"
+    authors:
+      - name: "Metrica Sports"
+      - name: "Barça Innovation Hub"
+    repository-code: "https://github.com/metrica-sports/more-than-a-hack-2027"
+    license: MIT
+    date-released: "2026-10-20"
+    version: "1.0.0"
+  - type: dataset
+    title: "An integrated dataset of spatiotemporal and event data in elite soccer"
+    authors:
+      - family-names: "Bassek"
+        given-names: "M."
+      - family-names: "Rein"
+        given-names: "R."
+      - family-names: "Weber"
+        given-names: "H."
+      - family-names: "Memmert"
+        given-names: "D."
+    year: 2025
+    doi: "10.6084/m9.figshare.28196177"
+    license: CC-BY-4.0
